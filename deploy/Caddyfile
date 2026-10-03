@@ -1,0 +1,11 @@
+{
+	admin off
+	log default {
+		output discard
+	}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy folio:8080
+}

@@ -1,0 +1,7 @@
+node_modules
+dist
+server/data
+.git
+*.log
+*.png
+!public/*.png

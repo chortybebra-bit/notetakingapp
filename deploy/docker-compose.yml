@@ -1,0 +1,49 @@
+# Folio on a VPS.
+#
+#   Onion service (most anonymous, no domain needed):
+#     docker compose --profile onion up -d --build
+#     docker compose exec tor cat /var/lib/tor/folio/hostname
+#
+#   HTTPS on your own domain:
+#     DOMAIN=notes.example.com docker compose --profile https up -d --build
+#
+# Both profiles can run at the same time.
+
+services:
+  folio:
+    build: ..
+    restart: unless-stopped
+    volumes:
+      - folio-data:/data
+    logging:
+      driver: none
+
+  tor:
+    profiles: [onion]
+    build: ./tor
+    restart: unless-stopped
+    network_mode: service:folio
+    volumes:
+      - tor-keys:/var/lib/tor
+    logging:
+      driver: none
+
+  caddy:
+    profiles: [https]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN=your.domain}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    logging:
+      driver: none
+
+volumes:
+  folio-data:
+  tor-keys:
+  caddy-data:

@@ -1,0 +1,43 @@
+{
+  "name": "folio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/server.mjs",
+    "typecheck": "tsc --noEmit",
+    "check:relay": "node scripts/relay-sync-check.mjs",
+    "check:ui": "node scripts/ui-check.mjs"
+  },
+  "dependencies": {
+    "@tiptap/extension-code-block-lowlight": "^2.11.7",
+    "@tiptap/extension-collaboration": "^2.11.7",
+    "@tiptap/extension-collaboration-cursor": "^2.11.7",
+    "@tiptap/extension-link": "^2.11.7",
+    "@tiptap/extension-placeholder": "^2.11.7",
+    "@tiptap/extension-task-item": "^2.11.7",
+    "@tiptap/extension-task-list": "^2.11.7",
+    "@tiptap/extension-underline": "^2.11.7",
+    "@tiptap/pm": "^2.11.7",
+    "@tiptap/react": "^2.11.7",
+    "@tiptap/starter-kit": "^2.11.7",
+    "lowlight": "^3.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.1",
+    "y-indexeddb": "^9.0.12",
+    "y-protocols": "^1.0.7",
+    "yjs": "^13.6.23"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "puppeteer-core": "^25.12.0",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}

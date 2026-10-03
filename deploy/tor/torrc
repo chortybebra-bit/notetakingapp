@@ -1,0 +1,8 @@
+# Publishes Folio as a .onion site. Shares the folio container's network,
+# so the app is reached on 127.0.0.1 and never exposed on the VPS's public IP.
+SocksPort 0
+DataDirectory /var/lib/tor
+HiddenServiceDir /var/lib/tor/folio
+HiddenServiceVersion 3
+HiddenServicePort 80 127.0.0.1:8080
+Log notice stdout

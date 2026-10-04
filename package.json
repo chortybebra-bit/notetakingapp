@@ -12,7 +12,8 @@
     "start": "node --disable-warning=ExperimentalWarning server/server.mjs",
     "typecheck": "tsc --noEmit",
     "check:relay": "node scripts/relay-sync-check.mjs",
-    "check:ui": "node scripts/ui-check.mjs"
+    "check:ui": "node scripts/ui-check.mjs",
+    "check:features": "node scripts/features-check.mjs"
   },
   "dependencies": {
     "@noble/ciphers": "^2.4.0",
@@ -28,6 +29,7 @@
     "@tiptap/pm": "^2.11.7",
     "@tiptap/react": "^2.11.7",
     "@tiptap/starter-kit": "^2.11.7",
+    "@xyflow/react": "^12.12.0",
     "lowlight": "^3.3.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

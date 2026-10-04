@@ -2,6 +2,12 @@
 
 Anonymous, end-to-end encrypted shared notes. Pages, subpages, slash commands, task lists, and live cursors, with no accounts.
 
+- **Sections and subpages.** Group pages (for example *Development* → Bugs, Improvements, Tasks; *Ads* → Forums, Channels). Drag pages between groups in the sidebar; a group page shows its subpages as cards.
+- **Tasks inside any page.** Mix to-dos with text, nest subtasks with Tab, and give each task a priority and a due date (⚑ on the task).
+- **Tasks view.** Every task in the space, grouped into Overdue, Today, Next 7 days, Later, and No date, filterable by section and priority. Tick tasks off from there. The sidebar counts what is due; on https the browser can also pop up a daily reminder.
+- **Links between pages.** Type `[[` to link a page; each page lists the pages that link to it.
+- **Boards.** Diagram pages with cards and arrows. Cards can hold lists (`- item`, indented sub-items, `[ ] task`).
+
 Built on the open-source editing stack used by Notion-style apps such as [AFFiNE](https://github.com/toeverything/AFFiNE): [Tiptap](https://github.com/ueberdosis/tiptap) for the editor and [Yjs](https://github.com/yjs/yjs) for conflict-free syncing.
 
 ## How privacy works
@@ -107,6 +113,7 @@ For maximum anonymity, use Tor Browser with the onion address. Tor Browser canno
 npm run check:relay   # server stores only ciphertext; wrong key is rejected
 npm run check:ui      # two separate browsers co-edit; no WebRTC, no third-party requests,
                       # no key in the address bar, no plaintext on the server
+npm run check:features  # sections, tasks with priority and dates, Tasks view, [[links]], boards
 ```
 
 Both expect `npm run dev` to be running. To test a production server, pass its address: `node scripts/ui-check.mjs http://127.0.0.1:8080/ <data-dir>`.

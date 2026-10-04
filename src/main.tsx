@@ -1,7 +1,6 @@
 import { Component, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
-import { InsecureScreen } from './components/InsecureScreen'
 import './styles.css'
 
 class Boundary extends Component<{ children: ReactNode }, { message: string | null }> {
@@ -35,8 +34,9 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 const root = document.getElementById('root')
 if (!root) throw new Error('Missing root')
-const canEncrypt = window.isSecureContext && Boolean(crypto.subtle)
 
 createRoot(root).render(
-  <Boundary>{canEncrypt ? <App /> : <InsecureScreen />}</Boundary>,
+  <Boundary>
+    <App />
+  </Boundary>,
 )

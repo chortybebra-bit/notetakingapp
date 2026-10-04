@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { forgetAll, forgetSpace, generateSecret, loadSpaces, readHash, upsertSpace } from '../lib/storage'
+import { forgetAll, forgetSpace, generateSecret, loadSpaces, randomId, readHash, upsertSpace } from '../lib/storage'
 import { InstallButton } from './InstallButton'
 
 export function HomeScreen() {
@@ -9,7 +9,7 @@ export function HomeScreen() {
   const [spaces, setSpaces] = useState(loadSpaces)
 
   function createSpace() {
-    const vaultId = crypto.randomUUID()
+    const vaultId = randomId()
     const secret = generateSecret()
     const name = spaceName.trim() || 'Untitled space'
     upsertSpace(vaultId, secret, { name })

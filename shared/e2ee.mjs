@@ -1,9 +1,22 @@
 /**
  * AES-GCM helpers for Folio's blind relay.
  * The relay stores and forwards these blobs; it never receives the key.
+ *
+ * Browsers expose crypto.subtle only on https, .onion, and localhost. Elsewhere
+ * (plain http) the same algorithms run in pure JavaScript via @noble, producing
+ * identical keys, room ids, and ciphertext, so both kinds of client interoperate.
  */
 
+import { gcm } from '@noble/ciphers/aes.js'
+import { hmac } from '@noble/hashes/hmac.js'
+import { pbkdf2Async } from '@noble/hashes/pbkdf2.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+
+const ITERATIONS = 100000
+const enc = new TextEncoder()
 const cache = new Map()
+
+const subtle = () => globalThis.crypto?.subtle
 
 function bytesToBase64(bytes) {
   let binary = ''
@@ -19,21 +32,12 @@ function base64ToBytes(value) {
 }
 
 async function derive(secret, room) {
-  const enc = new TextEncoder()
-  const material = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(secret),
-    'PBKDF2',
-    false,
-    ['deriveKey'],
-  )
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: enc.encode(`folio-relay:${room}`),
-      iterations: 100000,
-      hash: 'SHA-256',
-    },
+  const salt = enc.encode(`folio-relay:${room}`)
+  const native = subtle()
+  if (!native) return pbkdf2Async(sha256, enc.encode(secret), salt, { c: ITERATIONS, dkLen: 32 })
+  const material = await native.importKey('raw', enc.encode(secret), 'PBKDF2', false, ['deriveKey'])
+  return native.deriveKey(
+    { name: 'PBKDF2', salt, iterations: ITERATIONS, hash: 'SHA-256' },
     material,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -41,6 +45,7 @@ async function derive(secret, room) {
   )
 }
 
+/** Returns a CryptoKey when crypto.subtle exists, otherwise the raw 32-byte key. */
 export function deriveKey(secret, room) {
   const id = `${secret}\0${room}`
   if (!cache.has(id)) cache.set(id, derive(secret, room))
@@ -49,9 +54,10 @@ export function deriveKey(secret, room) {
 
 export async function encryptBytes(key, data) {
   const iv = crypto.getRandomValues(new Uint8Array(12))
-  const cipher = new Uint8Array(
-    await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data),
-  )
+  const cipher =
+    key instanceof Uint8Array
+      ? gcm(key, iv).encrypt(data)
+      : new Uint8Array(await subtle().encrypt({ name: 'AES-GCM', iv }, key, data))
   const out = new Uint8Array(iv.length + cipher.length)
   out.set(iv, 0)
   out.set(cipher, iv.length)
@@ -63,8 +69,8 @@ export async function decryptBytes(key, blob) {
   if (raw.length < 13) throw new Error('ciphertext too short')
   const iv = raw.slice(0, 12)
   const cipher = raw.slice(12)
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipher)
-  return new Uint8Array(plain)
+  if (key instanceof Uint8Array) return gcm(key, iv).decrypt(cipher)
+  return new Uint8Array(await subtle().decrypt({ name: 'AES-GCM', iv }, key, cipher))
 }
 
 /**
@@ -73,15 +79,15 @@ export async function decryptBytes(key, blob) {
  * to each other, or to the page ids inside the space.
  */
 export async function roomId(secret, label) {
-  const enc = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(`folio-room:${label}`)))
+  const message = enc.encode(`folio-room:${label}`)
+  const native = subtle()
+  let mac
+  if (native) {
+    const key = await native.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+    mac = new Uint8Array(await native.sign('HMAC', key, message))
+  } else {
+    mac = hmac(sha256, enc.encode(secret), message)
+  }
   return Array.from(mac, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 

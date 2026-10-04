@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import type { Map as YMap } from 'yjs'
 import { DECISION_HTML, MEETING_HTML, WELCOME_HTML } from '../content/templates'
 import { usePeers, useRelayOnline } from '../lib/presence'
-import { inviteLink, randomIdentity, upsertSpace, type Identity, type SavedSpace } from '../lib/storage'
+import {
+  copyText,
+  inviteLink,
+  randomId,
+  randomIdentity,
+  upsertSpace,
+  type Identity,
+  type SavedSpace,
+} from '../lib/storage'
 import { metaRoom, openRoom, pageRoom, type RoomHandle } from '../sync/relayRoom'
 import { InstallButton } from './InstallButton'
 import { PageEditor } from './PageEditor'
@@ -82,7 +90,7 @@ export function Workspace({ space }: { space: SavedSpace }) {
 
     const creatorLabel = sessionStorage.getItem(`folio-creator-${vaultId}`)
     if (creatorLabel && pageMap.size === 0) {
-      const id = crypto.randomUUID()
+      const id = randomId()
       meta.doc.transact(() => {
         if (pageMap.size !== 0) return
         info.set('name', creatorLabel)
@@ -156,7 +164,7 @@ export function Workspace({ space }: { space: SavedSpace }) {
 
   function createPage(parentId: string, title: string, html: string | null) {
     if (!meta) return
-    const id = crypto.randomUUID()
+    const id = randomId()
     meta.doc.getMap<PageValue>('pages').set(id, {
       title,
       parentId,
@@ -336,10 +344,13 @@ export function Workspace({ space }: { space: SavedSpace }) {
                   type="button"
                   className="primary slim"
                   onClick={() => {
-                    void navigator.clipboard.writeText(link).then(() => {
-                      setCopied(true)
-                      window.setTimeout(() => setCopied(false), 1600)
-                    })
+                    copyText(link).then(
+                      () => {
+                        setCopied(true)
+                        window.setTimeout(() => setCopied(false), 1600)
+                      },
+                      () => {},
+                    )
                   }}
                 >
                   {copied ? 'Copied' : 'Copy invite link'}

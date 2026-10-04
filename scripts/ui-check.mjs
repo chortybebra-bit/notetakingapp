@@ -77,8 +77,12 @@ await a.page.waitForFunction(() => document.querySelector('.page-title')?.value 
 await a.page.waitForFunction(() => document.querySelector('.page-body')?.innerText.includes('from B'), { timeout: 10000 })
 await a.page.waitForFunction((name) => document.querySelector('.presence')?.innerText.includes(name), { timeout: 10000 }, aliasB)
 
-await a.page.click('.page-body')
+// Clicking mid-page can land on B's cursor label, so place the caret by keyboard.
+await a.page.click('.page-body p')
+await a.page.keyboard.down('Control')
 await a.page.keyboard.press('End')
+await a.page.keyboard.up('Control')
+await a.page.keyboard.press('Enter')
 await a.page.keyboard.press('Enter')
 await a.page.keyboard.type('/todo')
 await a.page.waitForSelector('.slash-menu')

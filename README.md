@@ -67,12 +67,20 @@ Then follow the three steps at the top of [`deploy/nginx.conf`](deploy/nginx.con
 
 ### Without Docker
 
+Requires Node 22.13 or newer.
+
 ```bash
 npm ci && npm run build
 STATIC_DIR=dist HOST=0.0.0.0 PORT=8080 npm start
 ```
 
-Requires Node 22.13 or newer. Put an HTTPS proxy in front of it. Browsers only allow encryption on `https://`, `.onion`, or `localhost` pages.
+Open `http://<server-ip>:8080`. `npm run dev` also works and serves on port 5173.
+
+### Plain http
+
+Folio works over plain `http://`. Browsers hide their built-in crypto there, so Folio switches to the audited pure-JavaScript [@noble](https://github.com/paulmillr/noble-ciphers) implementations of the same algorithms. The data is identical, so http and https clients can share a space.
+
+The server still only stores ciphertext. What http loses is protection in transit: anyone on the network path (Wi-Fi, ISP, the hosting provider) can read or modify the app code as it loads, and modified code could steal keys. Use HTTPS or the onion service when that matters.
 
 ## Storage
 

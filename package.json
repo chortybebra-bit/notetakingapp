@@ -3,10 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "start": "node server/server.mjs",
+    "start": "node --disable-warning=ExperimentalWarning server/server.mjs",
     "typecheck": "tsc --noEmit",
     "check:relay": "node scripts/relay-sync-check.mjs",
     "check:ui": "node scripts/ui-check.mjs"

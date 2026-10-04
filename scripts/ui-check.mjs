@@ -1,15 +1,15 @@
 // Two isolated browsers create, join, and co-edit a space, then verify the
 // privacy properties: no WebRTC, no third-party requests, no key left in the
 // address bar, and no plaintext on the server.
-// Usage: node scripts/ui-check.mjs [http://127.0.0.1:5173] [path/to/rooms.json]
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+// Usage: node scripts/ui-check.mjs [http://127.0.0.1:5173] [server data dir]
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import puppeteer from 'puppeteer-core'
 
 const chrome = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 const url = process.argv[2] || 'http://127.0.0.1:5173/'
-const roomsFile = process.argv[3] || 'server/data/rooms.json'
+const dataDir = process.argv[3] || 'server/data'
 const origin = new URL(url).origin
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -91,7 +91,12 @@ for (const [label, page] of [['A', a.page], ['B', b.page]]) {
   if (rtc) problems.push(`${label} opened ${rtc} WebRTC connection(s)`)
 }
 
-const stored = readFileSync(roomsFile, 'utf8')
+const stored = ['folio.db', 'folio.db-wal']
+  .map((name) => join(dataDir, name))
+  .filter((file) => existsSync(file))
+  .map((file) => readFileSync(file, 'latin1'))
+  .join('')
+if (!stored) problems.push(`no database found in ${dataDir}`)
 const vaultId = link.match(/#v=([0-9a-f-]{36})/)[1]
 for (const text of ['Secret roadmap', 'Shared brief', 'Invite a teammate', 'Launch team', aliasA, aliasB, vaultId]) {
   if (stored.includes(text)) problems.push(`server stored plaintext: ${text}`)

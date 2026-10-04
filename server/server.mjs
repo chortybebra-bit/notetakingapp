@@ -15,8 +15,9 @@
  */
 
 import { createServer } from 'node:http'
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { dirname, extname, join, normalize, resolve } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { fileURLToPath } from 'node:url'
 import { WebSocketServer } from 'ws'
 
@@ -25,7 +26,6 @@ const port = Number(process.env.PORT || 4444)
 const host = process.env.HOST || '127.0.0.1'
 const dataDir = resolve(process.env.DATA_DIR || join(here, 'data'))
 const staticDir = process.env.STATIC_DIR ? resolve(process.env.STATIC_DIR) : null
-const dataFile = join(dataDir, 'rooms.json')
 
 const MAX_BLOB = 1_500_000
 const MAX_LOG = 80
@@ -33,30 +33,68 @@ const MAX_LOG = 80
 const ROOM_RE = /^[0-9a-f]{64}$/
 const BLOB_RE = /^[A-Za-z0-9+/=]+$/
 
-mkdirSync(dataDir, { recursive: true })
-
-/** @type {Record<string, string[]>} */
-let logs = {}
-try {
-  const parsed = JSON.parse(readFileSync(dataFile, 'utf8'))
-  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) logs = parsed
-} catch {
-  logs = {}
-}
-
-let saveTimer = null
-function scheduleSave() {
-  if (saveTimer) return
-  saveTimer = setTimeout(() => {
-    saveTimer = null
-    const tmp = `${dataFile}.tmp`
-    writeFileSync(tmp, JSON.stringify(logs))
-    renameSync(tmp, dataFile)
-  }, 200)
-}
-
 const isBlob = (value) =>
   typeof value === 'string' && value.length > 0 && value.length <= MAX_BLOB && BLOB_RE.test(value)
+
+// Files this process creates (database, WAL, journal) are readable by its owner only.
+process.umask(0o077)
+mkdirSync(dataDir, { recursive: true })
+
+const db = new DatabaseSync(join(dataDir, 'folio.db'))
+db.exec(`
+  PRAGMA journal_mode = WAL;
+  PRAGMA synchronous = NORMAL;
+  CREATE TABLE IF NOT EXISTS updates (
+    seq  INTEGER PRIMARY KEY AUTOINCREMENT,
+    room TEXT NOT NULL,
+    blob BLOB NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS updates_by_room ON updates (room, seq);
+`)
+
+const countUpdates = db.prepare('SELECT COUNT(*) AS n FROM updates WHERE room = ?')
+const listUpdates = db.prepare('SELECT blob FROM updates WHERE room = ? ORDER BY seq')
+const insertUpdate = db.prepare('INSERT INTO updates (room, blob) VALUES (?, ?)')
+const clearRoom = db.prepare('DELETE FROM updates WHERE room = ?')
+
+function transaction(work) {
+  db.exec('BEGIN IMMEDIATE')
+  try {
+    work()
+    db.exec('COMMIT')
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+const store = {
+  count: (room) => Number(countUpdates.get(room).n),
+  list: (room) => listUpdates.all(room).map((row) => Buffer.from(row.blob).toString('base64')),
+  append: (room, blob) => insertUpdate.run(room, Buffer.from(blob, 'base64')),
+  replace: (room, blob) =>
+    transaction(() => {
+      clearRoom.run(room)
+      insertUpdate.run(room, Buffer.from(blob, 'base64'))
+    }),
+}
+
+const legacyFile = join(dataDir, 'rooms.json')
+if (existsSync(legacyFile)) {
+  let legacy = null
+  try {
+    legacy = JSON.parse(readFileSync(legacyFile, 'utf8'))
+  } catch {}
+  if (legacy && typeof legacy === 'object') {
+    transaction(() => {
+      for (const [room, items] of Object.entries(legacy)) {
+        if (!ROOM_RE.test(room) || !Array.isArray(items) || store.count(room) > 0) continue
+        for (const blob of items) if (isBlob(blob)) store.append(room, blob)
+      }
+    })
+    rmSync(legacyFile)
+  }
+}
 
 const SECURITY_HEADERS = {
   'referrer-policy': 'no-referrer',
@@ -127,9 +165,8 @@ async function handleRelay(req, res, url) {
     sendJson(res, 400, { error: 'invalid room' })
     return
   }
-  const items = logs[room] || []
-
   if (req.method === 'GET' && action === 'updates') {
+    const items = store.list(room)
     sendJson(res, 200, { length: items.length, items })
     return
   }
@@ -150,24 +187,22 @@ async function handleRelay(req, res, url) {
     return
   }
 
+  const length = store.count(room)
   if (action === 'updates') {
-    if (items.length >= MAX_LOG) {
-      sendJson(res, 409, { error: 'compact', length: items.length })
+    if (length >= MAX_LOG) {
+      sendJson(res, 409, { error: 'compact', length })
       return
     }
-    items.push(body.blob)
-    logs[room] = items
-    scheduleSave()
-    sendJson(res, 200, { length: items.length })
+    store.append(room, body.blob)
+    sendJson(res, 200, { length: length + 1 })
     return
   }
 
-  if (typeof body.baseCount !== 'number' || body.baseCount !== items.length) {
-    sendJson(res, 409, { error: 'conflict', length: items.length })
+  if (typeof body.baseCount !== 'number' || body.baseCount !== length) {
+    sendJson(res, 409, { error: 'conflict', length })
     return
   }
-  logs[room] = [body.blob]
-  scheduleSave()
+  store.replace(room, body.blob)
   sendJson(res, 200, { length: 1 })
 }
 
@@ -298,6 +333,13 @@ server.on('error', (error) => {
   console.error(error)
   process.exit(1)
 })
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    db.close()
+    process.exit(0)
+  })
+}
 
 server.listen(port, host, () => {
   console.log(`Folio on http://${host}:${port}${staticDir ? '' : ' (relay only)'}`)

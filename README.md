@@ -39,16 +39,20 @@ docker compose exec tor cat /var/lib/tor/folio/hostname
 
 That prints an address like `abcd…xyz.onion`. You and your teammate both open it in [Tor Browser](https://www.torproject.org/download/), create or join a space, and share the invite link.
 
-### Option 2: HTTPS on a domain (most convenient)
+### Option 2: HTTPS (most convenient, works where Tor is blocked)
 
 This works in any browser and can be installed as an app. The server can see visitors' IP addresses, so use a VPN if that matters.
 
+You don't need to buy a domain. [sslip.io](https://sslip.io) names resolve to the IP written inside them, so a VPS at `203.0.113.7` is reachable as `203-0-113-7.sslip.io` with no registration:
+
 ```bash
 cd folio/deploy
-DOMAIN=notes.example.com docker compose --profile https up -d --build
+DOMAIN=203-0-113-7.sslip.io docker compose --profile https up -d --build
 ```
 
-First point the domain's DNS A record at the VPS. Caddy obtains the certificate automatically.
+Open `https://203-0-113-7.sslip.io`. Ports 80 and 443 must be open on the VPS firewall. Caddy obtains a Let's Encrypt certificate automatically. With your own domain, point its DNS A record at the VPS and use `DOMAIN=notes.example.com` instead.
+
+Certificates are published in public Certificate Transparency logs, so the hostname (and with sslip.io, the IP) becomes publicly listed as hosting a website. It says nothing about who uses it.
 
 ### Without Docker
 
@@ -57,7 +61,11 @@ npm ci && npm run build
 STATIC_DIR=dist HOST=0.0.0.0 PORT=8080 npm start
 ```
 
-Put an HTTPS proxy in front of it. Browsers only allow encryption on `https://`, `.onion`, or `localhost` pages.
+Requires Node 22.13 or newer. Put an HTTPS proxy in front of it. Browsers only allow encryption on `https://`, `.onion`, or `localhost` pages.
+
+## Storage
+
+The server keeps one SQLite database, `folio.db`, in its data directory (`server/data` locally, the `folio-data` Docker volume on a VPS). Each row is one encrypted update stored under an opaque room ID; there are no names, titles, IPs, or timestamps. Appending an edit writes one row, and compaction replaces a room's rows in a single transaction, so storage cost does not grow with the total amount of data. The files are readable only by the server's user. Restarting the server loses nothing. A `rooms.json` from older versions is imported on first start and then deleted.
 
 ## Browser or app?
 
@@ -82,4 +90,4 @@ npm run check:ui      # two separate browsers co-edit; no WebRTC, no third-party
                       # no key in the address bar, no plaintext on the server
 ```
 
-Both expect `npm run dev` to be running. To test a production server, pass its address: `node scripts/ui-check.mjs http://127.0.0.1:8080/ <data-dir>/rooms.json`.
+Both expect `npm run dev` to be running. To test a production server, pass its address: `node scripts/ui-check.mjs http://127.0.0.1:8080/ <data-dir>`.

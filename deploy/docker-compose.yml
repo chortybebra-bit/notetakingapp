@@ -4,8 +4,9 @@
 #     docker compose --profile onion up -d --build
 #     docker compose exec tor cat /var/lib/tor/folio/hostname
 #
-#   HTTPS on your own domain:
-#     DOMAIN=notes.example.com docker compose --profile https up -d --build
+#   HTTPS (any browser). Use your own domain, or no domain at all via sslip.io,
+#   where 1-2-3-4.sslip.io resolves to 1.2.3.4:
+#     DOMAIN=1-2-3-4.sslip.io docker compose --profile https up -d --build
 #
 # Both profiles can run at the same time.
 

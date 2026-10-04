@@ -9,7 +9,7 @@ function folioRelay() {
   let child: ChildProcess | null = null
   const start = (server: HasHttpServer) => {
     if (!child) {
-      child = spawn(process.execPath, ['server/server.mjs'], {
+      child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', 'server/server.mjs'], {
         stdio: 'inherit',
         env: { ...process.env, PORT: '4444', HOST: '127.0.0.1' },
       })

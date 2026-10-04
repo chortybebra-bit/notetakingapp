@@ -8,12 +8,18 @@
 #   where 1-2-3-4.sslip.io resolves to 1.2.3.4:
 #     DOMAIN=1-2-3-4.sslip.io docker compose --profile https up -d --build
 #
-# Both profiles can run at the same time.
+#   Behind a web server that already owns ports 80/443 (nginx etc.):
+#     docker compose up -d --build
+#   then proxy to 127.0.0.1:8080 (see nginx.conf). FOLIO_PORT changes the port.
+#
+# The profiles can run at the same time.
 
 services:
   folio:
     build: ..
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FOLIO_PORT:-8080}:8080"
     volumes:
       - folio-data:/data
     logging:

@@ -54,6 +54,17 @@ Open `https://203-0-113-7.sslip.io`. Ports 80 and 443 must be open on the VPS fi
 
 Certificates are published in public Certificate Transparency logs, so the hostname (and with sslip.io, the IP) becomes publicly listed as hosting a website. It says nothing about who uses it.
 
+### On a server that already runs nginx
+
+If ports 80 and 443 are taken, skip Caddy. Run only Folio, which listens on `127.0.0.1:8080`, and proxy to it:
+
+```bash
+cd folio/deploy
+docker compose up -d --build
+```
+
+Then follow the three steps at the top of [`deploy/nginx.conf`](deploy/nginx.conf). Certbot adds the certificate.
+
 ### Without Docker
 
 ```bash
